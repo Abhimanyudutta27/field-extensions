@@ -1,8 +1,8 @@
 app_name = "field_extensions"
 app_title = "Field Extensions"
-app_publisher = "Delibrex"
+app_publisher = "Abhimanyu Dutta"
 app_description = "Advanced custom field types for the Frappe Framework — Date Range, Progress Bar, and Table Editor"
-app_email = "admin@delibrex.com"
+app_email = "abhimanyudutta27.com"
 app_license = "mit"
 
 # Apps
