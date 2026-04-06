@@ -11,10 +11,26 @@ def _register_custom_fieldtypes():
 	NEW_NUMERIC_TYPES = ("Progress",)
 
 	# Extend data_fieldtypes (tuple – must replace)
-	frappe.model.data_fieldtypes = frappe.model.data_fieldtypes + NEW_DATA_TYPES
+	new_data_fieldtypes = frappe.model.data_fieldtypes + NEW_DATA_TYPES
+	frappe.model.data_fieldtypes = new_data_fieldtypes
 
 	# Extend numeric_fieldtypes
 	frappe.model.numeric_fieldtypes = frappe.model.numeric_fieldtypes + NEW_NUMERIC_TYPES
+
+	# CRITICAL: Also patch modules that import data_fieldtypes directly,
+	# since they hold a reference to the OLD tuple object.
+	# meta.py uses it in get_valid_columns() — without this, fields are
+	# silently excluded from saves.
+	import sys
+
+	for mod_name in (
+		"frappe.model.meta",
+		"frappe.model.create_new",
+		"frappe.core.report.permitted_documents_for_user.permitted_documents_for_user",
+	):
+		mod = sys.modules.get(mod_name)
+		if mod and hasattr(mod, "data_fieldtypes"):
+			mod.data_fieldtypes = new_data_fieldtypes
 
 	# Patch MariaDB type_map
 	from frappe.database.mariadb.database import MariaDBDatabase
@@ -65,3 +81,24 @@ def _register_custom_fieldtypes():
 
 
 _register_custom_fieldtypes()
+
+
+def _ensure_meta_patched():
+	"""Ensure meta.py has the updated data_fieldtypes even if it was
+	imported after our __init__.py ran (lazy import scenario)."""
+	import frappe.model.meta as meta_mod
+
+	if "Date Range" not in getattr(meta_mod, "data_fieldtypes", ()):
+		meta_mod.data_fieldtypes = frappe.model.data_fieldtypes
+
+
+# Also hook into frappe.get_meta to ensure patching on first access
+_orig_get_meta = frappe.get_meta
+
+
+def _patched_get_meta(*args, **kwargs):
+	_ensure_meta_patched()
+	return _orig_get_meta(*args, **kwargs)
+
+
+frappe.get_meta = _patched_get_meta
