@@ -244,7 +244,7 @@ frappe.ui.form.ControlTableEditor = class ControlTableEditor extends frappe.ui.f
 		td.columns.forEach((col, ci) => {
 			let sel = this.selected_col === ci, stk = this.sticky_cols.has(ci);
 			let s = `width:${w[ci]}px;min-width:60px;max-width:${w[ci]}px;`;
-			if (stk) s += `position:sticky;left:${sl[ci]}px;z-index:3;`;
+			if (stk) s += `position:sticky;left:${sl[ci]}px;z-index:5;`;
 			h += `<th class="te-header-cell${sel?" te-col-selected":""}${stk?" te-sticky-col":""}" data-col="${ci}" style="${s}">`;
 			h += `<div class="te-header-inner"><input type="text" class="te-header-input" data-col="${ci}" value="${frappe.utils.escape_html(col||"")}" spellcheck="false">`;
 			h += `<div class="te-col-menu-btn" data-col="${ci}"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>`;
@@ -253,11 +253,11 @@ frappe.ui.form.ControlTableEditor = class ControlTableEditor extends frappe.ui.f
 		h += '</tr></thead><tbody>';
 		(td.data||[]).forEach((row, ri) => {
 			let rs = this.selected_row === ri;
-			h += `<tr${rs?' class="te-row-selected"':''} data-row="${ri}"><td class="te-row-num" data-row="${ri}" style="position:sticky;left:0;z-index:1;">${ri+1}</td>`;
+			h += `<tr${rs?' class="te-row-selected"':''} data-row="${ri}"><td class="te-row-num" data-row="${ri}" style="position:sticky;left:0;z-index:3;">${ri+1}</td>`;
 			td.columns.forEach((_, ci) => {
 				let cv = (row&&row[ci]!==undefined)?row[ci]:"", cs = this.selected_col===ci, stk = this.sticky_cols.has(ci);
 				let s = `width:${w[ci]}px;min-width:60px;max-width:${w[ci]}px;`;
-				if (stk) s += `position:sticky;left:${sl[ci]}px;z-index:1;`;
+				if (stk) s += `position:sticky;left:${sl[ci]}px;z-index:2;`;
 				h += `<td class="te-cell${cs?" te-col-selected":""}${stk?" te-sticky-col":""}" style="${s}"><input type="text" class="te-cell-input" data-row="${ri}" data-col="${ci}" value="${frappe.utils.escape_html(String(cv))}" spellcheck="false"></td>`;
 			});
 			h += '</tr>';

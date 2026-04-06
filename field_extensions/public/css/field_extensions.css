@@ -303,16 +303,18 @@ th.te-col-selected .te-col-menu-btn {
 
 /* ---- Sticky columns ---- */
 .te-sticky-col {
-	background: var(--fg-color);
+	background: var(--fg-color) !important;
 	border-right: 2px solid var(--gray-400) !important;
 }
 th.te-sticky-col {
-	background: var(--subtle-fg);
-	z-index: 5 !important;
+	background: var(--subtle-fg) !important;
 }
-/* sticky header + sticky col intersection needs highest z */
-thead .te-sticky-col {
-	z-index: 6 !important;
+/* sticky cells must stay opaque on hover */
+.te-table tbody tr:hover td.te-sticky-col {
+	background: var(--subtle-fg) !important;
+}
+.te-row-selected td.te-sticky-col {
+	background: var(--blue-50, #eff6ff) !important;
 }
 /* pin indicator on sticky header */
 th.te-sticky-col .te-header-inner::before {
