@@ -224,6 +224,7 @@ frappe.ui.form.ControlTableEditor = class ControlTableEditor extends frappe.ui.f
 			this.render_table(this.get_default_data());
 			this.sync_and_rerender();
 		});
+		this.update_status({columns: [], data: []});
 		this.update_delete_buttons();
 	}
 
