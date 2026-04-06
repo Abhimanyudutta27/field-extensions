@@ -396,7 +396,7 @@ frappe.ui.form.ControlTableEditor = class ControlTableEditor extends frappe.ui.f
 	add_column() { let d=this.read_table_data(); if(!d.columns.length){this.render_table(this.get_default_data());this.sync_and_rerender();return;} let at=this.selected_col!==null?this.selected_col+1:d.columns.length; d.columns.splice(at,0,__("Column")+" "+(d.columns.length+1)); this.col_widths.splice(at,0,150); d.data.forEach(r=>r.splice(at,0,"")); d.col_widths=this.col_widths; d.sticky_cols=[...this.sticky_cols]; this.selected_col=null; this.render_table(d); this.sync_and_rerender(); }
 	delete_selected_row() { if(this.selected_row===null)return; let d=this.read_table_data(); if(d.data.length<=1)return; d.data.splice(this.selected_row,1); d.col_widths=this.col_widths; d.sticky_cols=[...this.sticky_cols]; this.selected_row=null; this.render_table(d); this.sync_and_rerender(); }
 	delete_selected_col() { if(this.selected_col===null)return; this.delete_column(this.selected_col); }
-	clear_all() { frappe.confirm(__("Clear all data in this table?"),()=>{ this.selected_row=null; this.selected_col=null; this.col_widths=null; this.sticky_cols=new Set(); this.render_empty_state(); this.$input.val(""); this.parse_validate_and_set_in_model(""); }); }
+	clear_all() { frappe.confirm(__("Clear all data in this table?"),()=>{ this.selected_row=null; this.selected_col=null; this.col_widths=null; this.sticky_cols=new Set(); this.render_empty_state(); this.$input.val(""); this.parse_validate_and_set_in_model(null); }); }
 
 	// ---- read DOM ----
 	read_table_data() {
@@ -422,7 +422,7 @@ frappe.ui.form.ControlTableEditor = class ControlTableEditor extends frappe.ui.f
 	}
 
 	get_input_value() { return this.$input ? this.$input.val() : ""; }
-	parse(v) { if(!v)return""; if(typeof v==="object")return JSON.stringify(v); try{JSON.parse(v);return v;}catch(e){return"";} }
+	parse(v) { if(!v)return null; if(typeof v==="object")return JSON.stringify(v); try{JSON.parse(v);return v;}catch(e){return null;} }
 
 	set_disp_area(value) {
 		if (!value || !this.disp_area) return;
