@@ -67,7 +67,6 @@ def _register_custom_fieldtypes():
 	_orig_get_valid_dict = BaseDocument.get_valid_dict
 
 	def _patched_get_valid_dict(self, **kwargs):
-		# Before calling original, serialize any Date Range list values to strings
 		meta = getattr(self, "meta", None)
 		if meta:
 			for df in meta.fields:
@@ -75,6 +74,11 @@ def _register_custom_fieldtypes():
 					value = self.get(df.fieldname)
 					if isinstance(value, list):
 						self.set(df.fieldname, ",".join(str(v) for v in value))
+				elif df.fieldtype == "Table Editor":
+					# MariaDB JSON columns reject empty strings — must be valid JSON or NULL
+					value = self.get(df.fieldname)
+					if not value or value == "":
+						self.set(df.fieldname, None)
 		return _orig_get_valid_dict(self, **kwargs)
 
 	BaseDocument.get_valid_dict = _patched_get_valid_dict
