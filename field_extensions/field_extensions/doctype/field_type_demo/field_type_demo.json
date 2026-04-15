@@ -12,6 +12,18 @@
   "section_progress",
   "progress_field",
   "progress_field_2",
+  "section_tags",
+  "tags_field",
+  "section_slider",
+  "slider_field",
+  "slider_field_custom",
+  "section_toggle",
+  "toggle_field",
+  "toggle_field_2",
+  "section_rich_tags",
+  "rich_tags_field",
+  "section_address_autocomplete",
+  "address_autocomplete_field",
   "section_table_editor",
   "table_editor_field"
  ],
@@ -56,6 +68,82 @@
    "label": "Upload Progress"
   },
   {
+   "fieldname": "section_tags",
+   "fieldtype": "Section Break",
+   "label": "Tags Demo"
+  },
+  {
+   "description": "Type tags and press Enter to add them",
+   "fieldname": "tags_field",
+   "fieldtype": "Tags",
+   "in_list_view": 1,
+   "label": "Skills"
+  },
+  {
+   "fieldname": "section_slider",
+   "fieldtype": "Section Break",
+   "label": "Slider Demo"
+  },
+  {
+   "default": "50",
+   "description": "Drag the slider to set a value (0-100, step 1)",
+   "fieldname": "slider_field",
+   "fieldtype": "Slider",
+   "in_list_view": 1,
+   "label": "Priority Level"
+  },
+  {
+   "default": "0",
+   "description": "Custom range: 0 to 10, step 0.5",
+   "fieldname": "slider_field_custom",
+   "fieldtype": "Slider",
+   "label": "Custom Range Slider",
+   "options": "0,10,0.5"
+  },
+  {
+   "fieldname": "section_toggle",
+   "fieldtype": "Section Break",
+   "label": "Toggle Demo"
+  },
+  {
+   "default": "0",
+   "description": "Toggle switch for boolean values",
+   "fieldname": "toggle_field",
+   "fieldtype": "Toggle",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "default": "0",
+   "description": "Another toggle for comparison",
+   "fieldname": "toggle_field_2",
+   "fieldtype": "Toggle",
+   "label": "Send Notifications"
+  },
+  {
+   "fieldname": "section_rich_tags",
+   "fieldtype": "Section Break",
+   "label": "Rich Tags Demo"
+  },
+  {
+   "description": "Tags with color categories - click the dot to change color",
+   "fieldname": "rich_tags_field",
+   "fieldtype": "Rich Tags",
+   "in_list_view": 1,
+   "label": "Categories"
+  },
+  {
+   "fieldname": "section_address_autocomplete",
+   "fieldtype": "Section Break",
+   "label": "Address Autocomplete Demo"
+  },
+  {
+   "description": "Type an address to search via OpenStreetMap - stores structured address data as JSON",
+   "fieldname": "address_autocomplete_field",
+   "fieldtype": "Address Autocomplete",
+   "label": "Location"
+  },
+  {
    "fieldname": "section_table_editor",
    "fieldtype": "Section Break",
    "label": "Table Editor Demo"
@@ -69,7 +157,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-06 09:11:33.186657",
+ "modified": "2026-04-09 17:15:00.000000",
  "modified_by": "Administrator",
  "module": "Field Extensions",
  "name": "Field Type Demo",

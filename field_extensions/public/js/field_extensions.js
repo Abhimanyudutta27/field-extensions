@@ -441,6 +441,229 @@ frappe.ui.form.ControlTableEditor = class ControlTableEditor extends frappe.ui.f
 
 
 // ============================================================
+//  TAGS CONTROL
+// ============================================================
+frappe.ui.form.ControlTags = class ControlTags extends frappe.ui.form.ControlData {
+	make_input() {
+		super.make_input();
+		this.$input.hide();
+		this.tags_area = $('<div class="tags-input-area"></div>');
+		this.tag_input = $('<input class="tag-text-input" type="text" placeholder="' + __("Type and press Enter") + '">');
+		this.tags_area.append(this.tag_input);
+		$(this.input_area).append(this.tags_area);
+		this._tags = [];
+		this.setup_tag_events();
+	}
+	setup_tag_events() {
+		this.tag_input.on("keydown", (e) => {
+			if (e.key === "Enter" || e.key === ",") {
+				e.preventDefault();
+				let val = this.tag_input.val().trim();
+				if (val && !this._tags.includes(val)) {
+					this._tags.push(val);
+					this.render_tags();
+					this.update_value();
+				}
+				this.tag_input.val("");
+			} else if (e.key === "Backspace" && !this.tag_input.val() && this._tags.length) {
+				this._tags.pop();
+				this.render_tags();
+				this.update_value();
+			}
+		});
+		this.tags_area.on("click", (e) => {
+			if ($(e.target).closest(".tag-remove").length) {
+				let idx = $(e.target).closest(".tag-pill").data("idx");
+				this._tags.splice(idx, 1);
+				this.render_tags();
+				this.update_value();
+			} else {
+				this.tag_input.focus();
+			}
+		});
+	}
+	render_tags() {
+		this.tags_area.find(".tag-pill").remove();
+		this._tags.forEach((tag, i) => {
+			let pill = $(`<span class="tag-pill" data-idx="${i}">
+				<span class="tag-label">${frappe.utils.escape_html(tag)}</span>
+				<span class="tag-remove">&times;</span>
+			</span>`);
+			pill.insertBefore(this.tag_input);
+		});
+	}
+	update_value() {
+		let val = JSON.stringify(this._tags);
+		this.set_value(val);
+	}
+	set_input(value) {
+		this.last_value = this.value;
+		this._tags = this.parse_tags(value);
+		this.value = JSON.stringify(this._tags);
+		this.render_tags();
+		this.set_mandatory(value);
+		this.set_disp_area(value);
+	}
+	parse_tags(value) {
+		if (!value) return [];
+		if (Array.isArray(value)) return value;
+		try {
+			let parsed = JSON.parse(value);
+			if (Array.isArray(parsed)) return parsed;
+		} catch(e) {}
+		// fallback: comma-separated
+		return value.split(",").map(t => t.trim()).filter(Boolean);
+	}
+	get_value() {
+		return this._tags && this._tags.length ? JSON.stringify(this._tags) : "";
+	}
+	validate(value) {
+		if (!value) return "";
+		try {
+			let parsed = JSON.parse(value);
+			if (Array.isArray(parsed)) return value;
+		} catch(e) {}
+		return value;
+	}
+	set_formatted_input(value) {
+		this._tags = this.parse_tags(value);
+		this.render_tags();
+	}
+};
+
+// ============================================================
+//  SLIDER CONTROL
+// ============================================================
+frappe.ui.form.ControlSlider = class ControlSlider extends frappe.ui.form.ControlFloat {
+	make_input() {
+		super.make_input();
+		this.parse_slider_options();
+		this.slider_wrapper = $(`<div class="slider-control-wrapper">
+			<input type="range" class="slider-range-input"
+				min="${this.slider_min}" max="${this.slider_max}" step="${this.slider_step}">
+			<div class="slider-labels">
+				<span class="slider-min-label">${this.slider_min}</span>
+				<span class="slider-value-label">0</span>
+				<span class="slider-max-label">${this.slider_max}</span>
+			</div>
+		</div>`);
+		$(this.input_area).append(this.slider_wrapper);
+		this.slider_input = this.slider_wrapper.find(".slider-range-input");
+		this.slider_value_label = this.slider_wrapper.find(".slider-value-label");
+
+		this.slider_input.on("input", () => {
+			let val = parseFloat(this.slider_input.val());
+			this.slider_value_label.text(val);
+			this.update_slider_fill(val);
+			this.$input.val(val);
+		});
+		this.slider_input.on("change", () => {
+			let val = parseFloat(this.slider_input.val());
+			this.validate_and_set_in_model(val);
+		});
+		// Also sync when typing in the number input
+		this.$input.on("change", () => {
+			let val = parseFloat(this.$input.val()) || 0;
+			val = Math.min(this.slider_max, Math.max(this.slider_min, val));
+			this.slider_input.val(val);
+			this.slider_value_label.text(val);
+			this.update_slider_fill(val);
+		});
+	}
+	parse_slider_options() {
+		// Options format: "min,max,step" e.g. "0,100,5"
+		let opts = (this.df.options || "").split(",").map(s => parseFloat(s.trim()));
+		this.slider_min = isNaN(opts[0]) ? 0 : opts[0];
+		this.slider_max = isNaN(opts[1]) ? 100 : opts[1];
+		this.slider_step = isNaN(opts[2]) ? 1 : opts[2];
+	}
+	update_slider_fill(val) {
+		let pct = ((val - this.slider_min) / (this.slider_max - this.slider_min)) * 100;
+		this.slider_input.css("--slider-pct", pct + "%");
+	}
+	set_formatted_input(value) {
+		super.set_formatted_input(value);
+		let val = parseFloat(value) || 0;
+		if (this.slider_input) {
+			this.slider_input.val(val);
+			this.slider_value_label.text(val);
+			this.update_slider_fill(val);
+		}
+	}
+	validate(value) {
+		value = parseFloat(value);
+		if (isNaN(value)) return 0;
+		return value;
+	}
+};
+
+// ============================================================
+//  TOGGLE CONTROL
+// ============================================================
+frappe.ui.form.ControlToggle = class ControlToggle extends frappe.ui.form.ControlCheck {
+	make_wrapper() {
+		this.$wrapper = $(`<div class="form-group frappe-control">
+			<div class="toggle-field">
+				<label class="toggle-label-wrapper">
+					<span class="toggle-area">
+						<span class="input-area"></span>
+					</span>
+					<span class="disp-area"></span>
+					<span class="label-area"></span>
+					<span class="ml-1 help"></span>
+				</label>
+				<p class="help-box small text-muted"></p>
+			</div>
+		</div>`).appendTo(this.parent);
+	}
+	make_input() {
+		// Create the hidden checkbox (for data binding)
+		this.input = $('<input type="checkbox" class="toggle-checkbox">').get(0);
+		$(this.input_area).html("");
+
+		// Create visual toggle switch
+		this.toggle_switch = $(`<span class="toggle-switch">
+			<span class="toggle-knob"></span>
+		</span>`);
+		$(this.input_area).append(this.input).append(this.toggle_switch);
+
+		this.toggle_switch.on("click", () => {
+			if (this.disabled) return;
+			let new_val = this.input.checked ? 0 : 1;
+			this.input.checked = !this.input.checked;
+			this.toggle_switch.toggleClass("toggle-on", !!this.input.checked);
+			this.validate_and_set_in_model(new_val);
+		});
+
+		this.$input = $(this.input);
+		this.set_input_attributes();
+		this.input_area && $(this.input_area).find("input").addClass("input-xs");
+		this.$input.on("change", () => {
+			this.toggle_switch.toggleClass("toggle-on", !!this.input.checked);
+		});
+	}
+	set_input(value) {
+		this.last_value = this.value;
+		value = cint(value);
+		this.value = value;
+		if (this.input) {
+			this.input.checked = value ? 1 : 0;
+		}
+		if (this.toggle_switch) {
+			this.toggle_switch.toggleClass("toggle-on", !!value);
+		}
+		this.set_mandatory(value);
+		this.set_disp_area(value);
+	}
+	get_input_value() {
+		return this.input && this.input.checked ? 1 : 0;
+	}
+	validate(value) {
+		return cint(value);
+	}
+};
+
+// ============================================================
 //  FORMATTERS
 // ============================================================
 Object.assign(frappe.form.formatters, {
@@ -462,6 +685,38 @@ Object.assign(frappe.form.formatters, {
 		if (options && options.only_value) return value + "%";
 		return '<div style="display:flex;align-items:center;gap:8px"><div class="progress" style="flex:1;height:10px;margin:0;border-radius:5px"><div class="progress-bar" style="width:'+value+'%;background-color:'+color+';border-radius:5px"></div></div><span style="font-size:var(--text-xs);white-space:nowrap">'+format_number(value,null,1)+'%</span></div>';
 	},
+	Tags: function(value) {
+		if (!value) return "";
+		let tags = [];
+		try { tags = JSON.parse(value); } catch(e) {
+			tags = value.split(",").map(t => t.trim()).filter(Boolean);
+		}
+		if (!Array.isArray(tags)) return value;
+		return tags.map(t =>
+			`<span class="tag-format-pill">${frappe.utils.escape_html(t)}</span>`
+		).join(" ");
+	},
+	Slider: function(value, docfield, options) {
+		if (value === null || value === undefined) return "";
+		value = parseFloat(value) || 0;
+		let opts = (docfield.options || "").split(",").map(s => parseFloat(s.trim()));
+		let min = isNaN(opts[0]) ? 0 : opts[0];
+		let max = isNaN(opts[1]) ? 100 : opts[1];
+		let pct = ((value - min) / (max - min)) * 100;
+		if (options && options.only_value) return value;
+		return '<div style="display:flex;align-items:center;gap:8px">'
+			+ '<div style="flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden">'
+			+ '<div style="width:' + pct + '%;height:100%;background:var(--primary);border-radius:3px"></div>'
+			+ '</div><span style="font-size:var(--text-xs);white-space:nowrap">' + value + '</span></div>';
+	},
+	Toggle: function(value) {
+		let checked = cint(value);
+		return `<div class="toggle-format-display">
+			<span class="toggle-switch toggle-switch-sm ${checked ? "toggle-on" : ""}">
+				<span class="toggle-knob"></span>
+			</span>
+		</div>`;
+	},
 	TableEditor: function(value) {
 		if (!value) return "";
 		try {
@@ -474,4 +729,408 @@ Object.assign(frappe.form.formatters, {
 			h += '</tbody></table>'; return h;
 		} catch(e) { return value; }
 	},
+	"Rich Tags": function(value) {
+		if (!value) return "";
+		let tags = [];
+		try { tags = JSON.parse(value); } catch(e) { return value; }
+		if (!Array.isArray(tags)) return value;
+		return tags.map(t =>
+			`<span class="rich-tag-pill" style="background:${frappe.utils.escape_html(t.color || "#d1d5db")}">${frappe.utils.escape_html(t.label || "")}</span>`
+		).join(" ");
+	},
+	"Address Autocomplete": function(value) {
+		if (!value) return "";
+		try {
+			let d = JSON.parse(value);
+			return frappe.utils.escape_html(d.display || d.address || "");
+		} catch(e) {
+			return frappe.utils.escape_html(value);
+		}
+	},
 });
+
+
+// ============================================================
+//  RICH TAGS CONTROL
+// ============================================================
+frappe.ui.form.ControlRichTags = class ControlRichTags extends frappe.ui.form.ControlData {
+	static PRESET_COLORS = [
+		{ name: "Red", value: "#fee2e2", text: "#991b1b" },
+		{ name: "Orange", value: "#ffedd5", text: "#9a3412" },
+		{ name: "Yellow", value: "#fef9c3", text: "#854d0e" },
+		{ name: "Green", value: "#dcfce7", text: "#166534" },
+		{ name: "Blue", value: "#dbeafe", text: "#1e40af" },
+		{ name: "Purple", value: "#f3e8ff", text: "#6b21a8" },
+		{ name: "Pink", value: "#fce7f3", text: "#9d174d" },
+		{ name: "Gray", value: "#f3f4f6", text: "#374151" },
+	];
+
+	make_input() {
+		super.make_input();
+		this.$input.hide();
+		this.rich_tags_area = $('<div class="rich-tags-input-area"></div>');
+		this.tag_input_wrap = $(`<div class="rich-tag-add-wrap">
+			<input class="rich-tag-text-input" type="text" placeholder="${__("Type and press Enter")}">
+		</div>`);
+		this.tag_input = this.tag_input_wrap.find(".rich-tag-text-input");
+		this.rich_tags_area.append(this.tag_input_wrap);
+		$(this.input_area).append(this.rich_tags_area);
+		this._tags = [];
+		this._current_color_idx = 0;
+		this.setup_events();
+	}
+
+	setup_events() {
+		this.tag_input.on("keydown", (e) => {
+			if (e.key === "Enter" || e.key === ",") {
+				e.preventDefault();
+				let val = this.tag_input.val().trim();
+				if (val && !this._tags.find(t => t.label === val)) {
+					let color = this.constructor.PRESET_COLORS[this._current_color_idx % this.constructor.PRESET_COLORS.length];
+					this._tags.push({ label: val, color: color.value, text: color.text });
+					this._current_color_idx++;
+					this.render_tags();
+					this.save_value();
+				}
+				this.tag_input.val("");
+			} else if (e.key === "Backspace" && !this.tag_input.val() && this._tags.length) {
+				this._tags.pop();
+				this.render_tags();
+				this.save_value();
+			}
+		});
+
+		this.rich_tags_area.on("click", (e) => {
+			if ($(e.target).closest(".rich-tag-remove").length) {
+				let idx = $(e.target).closest(".rich-tag-pill").data("idx");
+				this._tags.splice(idx, 1);
+				this.render_tags();
+				this.save_value();
+			} else if ($(e.target).closest(".rich-tag-color-btn").length) {
+				let pill = $(e.target).closest(".rich-tag-pill");
+				let idx = pill.data("idx");
+				this.show_color_picker(pill, idx);
+			} else {
+				this.tag_input.focus();
+			}
+		});
+	}
+
+	show_color_picker(pill, idx) {
+		// Remove any existing picker
+		$(".rich-tag-color-picker").remove();
+
+		let picker = $('<div class="rich-tag-color-picker"></div>');
+		this.constructor.PRESET_COLORS.forEach((c, ci) => {
+			let swatch = $(`<span class="rich-tag-swatch" data-color-idx="${ci}"
+				style="background:${c.value}; border: 2px solid ${c.text}30"
+				title="${c.name}"></span>`);
+			picker.append(swatch);
+		});
+
+		picker.on("click", ".rich-tag-swatch", (e) => {
+			let ci = $(e.target).data("color-idx");
+			let color = this.constructor.PRESET_COLORS[ci];
+			this._tags[idx].color = color.value;
+			this._tags[idx].text = color.text;
+			this.render_tags();
+			this.save_value();
+			picker.remove();
+		});
+
+		pill.append(picker);
+
+		// Close picker on outside click
+		setTimeout(() => {
+			$(document).one("click", (e) => {
+				if (!$(e.target).closest(".rich-tag-color-picker").length) {
+					picker.remove();
+				}
+			});
+		}, 10);
+	}
+
+	render_tags() {
+		this.rich_tags_area.find(".rich-tag-pill").remove();
+		this._tags.forEach((tag, i) => {
+			let pill = $(`<span class="rich-tag-pill" data-idx="${i}" style="background:${frappe.utils.escape_html(tag.color)}; color:${frappe.utils.escape_html(tag.text || '#333')}">
+				<span class="rich-tag-color-btn" title="${__("Change color")}">&#9679;</span>
+				<span class="rich-tag-label">${frappe.utils.escape_html(tag.label)}</span>
+				<span class="rich-tag-remove">&times;</span>
+			</span>`);
+			pill.insertBefore(this.tag_input_wrap);
+		});
+	}
+
+	save_value() {
+		let val = this._tags.length ? JSON.stringify(this._tags) : "";
+		this.set_value(val);
+	}
+
+	set_input(value) {
+		this.last_value = this.value;
+		this._tags = this.parse_tags(value);
+		this.value = this._tags.length ? JSON.stringify(this._tags) : "";
+		this.render_tags();
+		this.set_mandatory(value);
+		this.set_disp_area(value);
+	}
+
+	parse_tags(value) {
+		if (!value) return [];
+		if (Array.isArray(value)) return value;
+		try {
+			let parsed = JSON.parse(value);
+			if (Array.isArray(parsed)) return parsed;
+		} catch(e) {}
+		return [];
+	}
+
+	get_value() {
+		return this._tags && this._tags.length ? JSON.stringify(this._tags) : "";
+	}
+
+	validate(value) {
+		if (!value) return "";
+		try {
+			let parsed = JSON.parse(value);
+			if (Array.isArray(parsed)) return value;
+		} catch(e) {}
+		return value;
+	}
+
+	set_formatted_input(value) {
+		this._tags = this.parse_tags(value);
+		this.render_tags();
+	}
+};
+
+// Register Rich Tags with space in name
+frappe.ui.form.ControlRichTags.field_type = "Rich Tags";
+frappe.ui.form["ControlRich Tags"] = frappe.ui.form.ControlRichTags;
+
+
+// ============================================================
+//  ADDRESS AUTOCOMPLETE CONTROL
+// ============================================================
+frappe.ui.form.ControlAddressAutocomplete = class ControlAddressAutocomplete extends frappe.ui.form.ControlData {
+	make_input() {
+		super.make_input();
+		this.$input.hide();
+
+		this.address_wrapper = $(`<div class="address-ac-wrapper">
+			<div class="address-ac-input-row">
+				<input class="address-ac-input" type="text" placeholder="${__("Start typing an address...")}">
+				<button class="btn btn-xs btn-default address-ac-clear" title="${__("Clear")}" style="display:none">&times;</button>
+			</div>
+			<div class="address-ac-dropdown" style="display:none"></div>
+			<div class="address-ac-display" style="display:none"></div>
+		</div>`);
+
+		$(this.input_area).append(this.address_wrapper);
+		this.ac_input = this.address_wrapper.find(".address-ac-input");
+		this.ac_dropdown = this.address_wrapper.find(".address-ac-dropdown");
+		this.ac_display = this.address_wrapper.find(".address-ac-display");
+		this.ac_clear = this.address_wrapper.find(".address-ac-clear");
+		this._address_data = null;
+		this._debounce_timer = null;
+		this.setup_events();
+	}
+
+	setup_events() {
+		this.ac_input.on("input", () => {
+			clearTimeout(this._debounce_timer);
+			let query = this.ac_input.val().trim();
+			if (query.length < 3) {
+				this.ac_dropdown.hide().empty();
+				return;
+			}
+			this._debounce_timer = setTimeout(() => this.fetch_suggestions(query), 350);
+		});
+
+		this.ac_input.on("focus", () => {
+			if (this.ac_dropdown.children().length) {
+				this.ac_dropdown.show();
+			}
+		});
+
+		this.ac_input.on("keydown", (e) => {
+			if (e.key === "Escape") {
+				this.ac_dropdown.hide();
+			}
+			// Arrow key navigation
+			if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+				e.preventDefault();
+				let items = this.ac_dropdown.find(".address-ac-item");
+				let active = this.ac_dropdown.find(".address-ac-item.active");
+				let idx = items.index(active);
+				if (e.key === "ArrowDown") idx = Math.min(idx + 1, items.length - 1);
+				else idx = Math.max(idx - 1, 0);
+				items.removeClass("active");
+				$(items[idx]).addClass("active");
+			}
+			if (e.key === "Enter") {
+				e.preventDefault();
+				let active = this.ac_dropdown.find(".address-ac-item.active");
+				if (active.length) active.trigger("click");
+			}
+		});
+
+		this.ac_dropdown.on("click", ".address-ac-item", (e) => {
+			let idx = $(e.currentTarget).data("idx");
+			this.select_suggestion(idx);
+		});
+
+		this.ac_clear.on("click", () => {
+			this.clear_address();
+		});
+
+		// Close dropdown on outside click
+		$(document).on("click", (e) => {
+			if (!$(e.target).closest(".address-ac-wrapper").length) {
+				this.ac_dropdown.hide();
+			}
+		});
+	}
+
+	fetch_suggestions(query) {
+		// Use Frappe's server-side Google Places proxy or Nominatim (OpenStreetMap)
+		// Default: Nominatim (free, no API key needed)
+		let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`;
+
+		fetch(url, { headers: { "Accept-Language": frappe.boot.lang || "en" } })
+			.then(r => r.json())
+			.then(results => {
+				this._suggestions = results || [];
+				this.render_suggestions();
+			})
+			.catch(() => {
+				this.ac_dropdown.hide().empty();
+			});
+	}
+
+	render_suggestions() {
+		this.ac_dropdown.empty();
+		if (!this._suggestions.length) {
+			this.ac_dropdown.hide();
+			return;
+		}
+		this._suggestions.forEach((s, i) => {
+			let item = $(`<div class="address-ac-item${i === 0 ? ' active' : ''}" data-idx="${i}">
+				<div class="address-ac-item-main">${frappe.utils.escape_html(s.display_name)}</div>
+				<div class="address-ac-item-sub">${frappe.utils.escape_html(s.type || "")} &middot; ${frappe.utils.escape_html(s.address?.country || "")}</div>
+			</div>`);
+			this.ac_dropdown.append(item);
+		});
+		this.ac_dropdown.show();
+	}
+
+	select_suggestion(idx) {
+		let s = this._suggestions[idx];
+		if (!s) return;
+
+		let addr = s.address || {};
+		this._address_data = {
+			display: s.display_name,
+			address_line1: [addr.house_number, addr.road].filter(Boolean).join(" "),
+			address_line2: addr.suburb || addr.neighbourhood || "",
+			city: addr.city || addr.town || addr.village || addr.municipality || "",
+			state: addr.state || addr.province || "",
+			country: addr.country || "",
+			pincode: addr.postcode || "",
+			county: addr.county || "",
+			latitude: parseFloat(s.lat) || null,
+			longitude: parseFloat(s.lon) || null,
+		};
+
+		this.ac_dropdown.hide().empty();
+		this.ac_input.val("").hide();
+		this.ac_clear.show();
+		this.render_display();
+		this.save_value();
+	}
+
+	render_display() {
+		if (!this._address_data) {
+			this.ac_display.hide().empty();
+			return;
+		}
+		let d = this._address_data;
+		let parts = [d.address_line1, d.address_line2, d.city, d.state, d.pincode, d.country].filter(Boolean);
+		this.ac_display.html(`
+			<div class="address-ac-card">
+				<div class="address-ac-card-line"><strong>${frappe.utils.escape_html(parts[0] || d.display)}</strong></div>
+				${parts.slice(1).map(p => `<div class="address-ac-card-line">${frappe.utils.escape_html(p)}</div>`).join("")}
+				${d.latitude ? `<div class="address-ac-card-coords">${d.latitude.toFixed(5)}, ${d.longitude.toFixed(5)}</div>` : ""}
+			</div>
+		`).show();
+	}
+
+	clear_address() {
+		this._address_data = null;
+		this.ac_input.val("").show();
+		this.ac_clear.hide();
+		this.ac_display.hide().empty();
+		this.ac_dropdown.hide().empty();
+		this.set_value("");
+		this.ac_input.focus();
+	}
+
+	save_value() {
+		let val = this._address_data ? JSON.stringify(this._address_data) : "";
+		this.set_value(val);
+	}
+
+	set_input(value) {
+		this.last_value = this.value;
+		this._address_data = this.parse_address(value);
+		this.value = this._address_data ? JSON.stringify(this._address_data) : "";
+		if (this._address_data) {
+			this.ac_input.hide();
+			this.ac_clear.show();
+			this.render_display();
+		} else {
+			this.ac_input.val("").show();
+			this.ac_clear.hide();
+			this.ac_display.hide().empty();
+		}
+		this.set_mandatory(value);
+		this.set_disp_area(value);
+	}
+
+	parse_address(value) {
+		if (!value) return null;
+		if (typeof value === "object" && value !== null) return value;
+		try {
+			let parsed = JSON.parse(value);
+			if (typeof parsed === "object" && parsed !== null) return parsed;
+		} catch(e) {}
+		return null;
+	}
+
+	get_value() {
+		return this._address_data ? JSON.stringify(this._address_data) : "";
+	}
+
+	validate(value) {
+		if (!value) return "";
+		try {
+			JSON.parse(value);
+			return value;
+		} catch(e) {}
+		return value;
+	}
+
+	set_formatted_input(value) {
+		this._address_data = this.parse_address(value);
+		if (this._address_data) {
+			this.ac_input.hide();
+			this.ac_clear.show();
+			this.render_display();
+		}
+	}
+};
+
+// Register Address Autocomplete with space in name
+frappe.ui.form.ControlAddressAutocomplete.field_type = "Address Autocomplete";
+frappe.ui.form["ControlAddress Autocomplete"] = frappe.ui.form.ControlAddressAutocomplete;

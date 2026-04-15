@@ -1,7 +1,7 @@
 import frappe
 
 
-CUSTOM_FIELDTYPES = ["Date Range", "Progress", "Table Editor"]
+CUSTOM_FIELDTYPES = ["Date Range", "Progress", "Table Editor", "Tags", "Slider", "Toggle", "Rich Tags", "Address Autocomplete"]
 
 # DocType fieldname pairs that have the fieldtype Select dropdown
 FIELDTYPE_SELECTS = [

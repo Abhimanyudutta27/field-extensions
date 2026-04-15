@@ -7,8 +7,8 @@ def _register_custom_fieldtypes():
 	"""Monkey-patch Frappe to register custom field types at import time.
 	This runs once when the app module is first imported."""
 
-	NEW_DATA_TYPES = ("Date Range", "Progress", "Table Editor")
-	NEW_NUMERIC_TYPES = ("Progress",)
+	NEW_DATA_TYPES = ("Date Range", "Progress", "Table Editor", "Tags", "Slider", "Toggle", "Rich Tags", "Address Autocomplete")
+	NEW_NUMERIC_TYPES = ("Progress", "Slider")
 
 	# Extend data_fieldtypes (tuple – must replace)
 	new_data_fieldtypes = frappe.model.data_fieldtypes + NEW_DATA_TYPES
@@ -42,6 +42,11 @@ def _register_custom_fieldtypes():
 		self.type_map["Date Range"] = ("varchar", self.VARCHAR_LEN)
 		self.type_map["Progress"] = ("decimal", "5,2")
 		self.type_map["Table Editor"] = ("json", "")
+		self.type_map["Tags"] = ("text", "")
+		self.type_map["Slider"] = ("decimal", "21,9")
+		self.type_map["Toggle"] = ("int", "1")
+		self.type_map["Rich Tags"] = ("text", "")
+		self.type_map["Address Autocomplete"] = ("text", "")
 
 	MariaDBDatabase.setup_type_map = _patched_mariadb_setup
 
@@ -56,6 +61,11 @@ def _register_custom_fieldtypes():
 			self.type_map["Date Range"] = ("varchar", self.VARCHAR_LEN)
 			self.type_map["Progress"] = ("decimal", "5,2")
 			self.type_map["Table Editor"] = ("json", "")
+			self.type_map["Tags"] = ("text", "")
+			self.type_map["Slider"] = ("decimal", "21,9")
+			self.type_map["Toggle"] = ("smallint", None)
+			self.type_map["Rich Tags"] = ("text", "")
+			self.type_map["Address Autocomplete"] = ("text", "")
 
 		PostgresDatabase.setup_type_map = _patched_postgres_setup
 	except ImportError:
@@ -74,6 +84,11 @@ def _register_custom_fieldtypes():
 					value = self.get(df.fieldname)
 					if isinstance(value, list):
 						self.set(df.fieldname, ",".join(str(v) for v in value))
+				elif df.fieldtype in ("Tags", "Rich Tags"):
+					value = self.get(df.fieldname)
+					if isinstance(value, (list, dict)):
+						import json
+						self.set(df.fieldname, json.dumps(value))
 				elif df.fieldtype == "Table Editor":
 					# MariaDB JSON columns reject empty strings — must be valid JSON or NULL
 					value = self.get(df.fieldname)
