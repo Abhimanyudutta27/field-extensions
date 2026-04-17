@@ -7,6 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "title",
+  "section_radio",
+  "radio_field",
+  "column_break_bmde",
   "section_date_range",
   "date_range_field",
   "section_progress",
@@ -33,6 +36,21 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_radio",
+   "fieldtype": "Section Break",
+   "label": "Radio Demo"
+  },
+  {
+   "description": "Select exactly one option \u2014 click again to deselect, double-click label to clear",
+   "fieldname": "radio_field",
+   "fieldtype": "Radio",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nCritical\nVery low\nvery High",
    "reqd": 1
   },
   {
@@ -76,7 +94,6 @@
    "description": "Type tags and press Enter to add them",
    "fieldname": "tags_field",
    "fieldtype": "Tags",
-   "in_list_view": 1,
    "label": "Skills"
   },
   {
@@ -129,7 +146,6 @@
    "description": "Tags with color categories - click the dot to change color",
    "fieldname": "rich_tags_field",
    "fieldtype": "Rich Tags",
-   "in_list_view": 1,
    "label": "Categories"
   },
   {
@@ -153,11 +169,15 @@
    "fieldname": "table_editor_field",
    "fieldtype": "Table Editor",
    "label": "Quick Data Table"
+  },
+  {
+   "fieldname": "column_break_bmde",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-09 17:15:00.000000",
+ "modified": "2026-04-17 11:26:31.226592",
  "modified_by": "Administrator",
  "module": "Field Extensions",
  "name": "Field Type Demo",

@@ -138,13 +138,17 @@ before_uninstall = "field_extensions.install.before_uninstall"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"DocField": {
+		"validate": "field_extensions.validators.validate_docfield",
+	},
+	"Custom Field": {
+		"validate": "field_extensions.validators.validate_docfield",
+	},
+	"Customize Form Field": {
+		"validate": "field_extensions.validators.validate_docfield",
+	},
+}
 
 # Scheduled Tasks
 # ---------------

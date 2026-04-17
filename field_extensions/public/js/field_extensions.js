@@ -629,18 +629,21 @@ frappe.ui.form.ControlToggle = class ControlToggle extends frappe.ui.form.Contro
 
 		this.toggle_switch.on("click", () => {
 			if (this.disabled) return;
-			let new_val = this.input.checked ? 0 : 1;
-			this.input.checked = !this.input.checked;
-			this.toggle_switch.toggleClass("toggle-on", !!this.input.checked);
+			// Read current value from the model (more reliable than input.checked
+			// which can get out of sync during Frappe's refresh cycle).
+			let new_val = cint(this.value) ? 0 : 1;
+			// Optimistically update the visual state immediately so the UI feels
+			// responsive — set_input will confirm this after the model updates.
+			this.input.checked = !!new_val;
+			this.toggle_switch.toggleClass("toggle-on", !!new_val);
 			this.validate_and_set_in_model(new_val);
 		});
 
 		this.$input = $(this.input);
 		this.set_input_attributes();
 		this.input_area && $(this.input_area).find("input").addClass("input-xs");
-		this.$input.on("change", () => {
-			this.toggle_switch.toggleClass("toggle-on", !!this.input.checked);
-		});
+		// No change listener needed — set_input() is the single source of truth
+		// for syncing input.checked and the visual toggle state.
 	}
 	set_input(value) {
 		this.last_value = this.value;
@@ -667,8 +670,8 @@ frappe.ui.form.ControlToggle = class ControlToggle extends frappe.ui.form.Contro
 //  FORMATTERS
 // ============================================================
 Object.assign(frappe.form.formatters, {
-	// Override DateRange to handle comma-separated string from DB
-	DateRange: function(value) {
+	// Date Range — key matches fieldtype name (with space); alias kept for safety
+	"Date Range": function(value) {
 		if (typeof value === "string" && value.includes(",")) {
 			var parts = value.split(",");
 			return __("{0} to {1}", [frappe.datetime.str_to_user(parts[0].trim()), frappe.datetime.str_to_user(parts[1].trim())]);
@@ -678,6 +681,10 @@ Object.assign(frappe.form.formatters, {
 		}
 		return value || "";
 	},
+	DateRange: function(value) {
+		return frappe.form.formatters["Date Range"](value);
+	},
+
 	Progress: function(value, docfield, options) {
 		if (value === null || value === undefined) return "";
 		value = Math.min(100, Math.max(0, parseFloat(value) || 0));
@@ -685,17 +692,12 @@ Object.assign(frappe.form.formatters, {
 		if (options && options.only_value) return value + "%";
 		return '<div style="display:flex;align-items:center;gap:8px"><div class="progress" style="flex:1;height:10px;margin:0;border-radius:5px"><div class="progress-bar" style="width:'+value+'%;background-color:'+color+';border-radius:5px"></div></div><span style="font-size:var(--text-xs);white-space:nowrap">'+format_number(value,null,1)+'%</span></div>';
 	},
+
+	// Tags — not supported in list view; blocked by validation
 	Tags: function(value) {
-		if (!value) return "";
-		let tags = [];
-		try { tags = JSON.parse(value); } catch(e) {
-			tags = value.split(",").map(t => t.trim()).filter(Boolean);
-		}
-		if (!Array.isArray(tags)) return value;
-		return tags.map(t =>
-			`<span class="tag-format-pill">${frappe.utils.escape_html(t)}</span>`
-		).join(" ");
+		return "";
 	},
+
 	Slider: function(value, docfield, options) {
 		if (value === null || value === undefined) return "";
 		value = parseFloat(value) || 0;
@@ -709,6 +711,7 @@ Object.assign(frappe.form.formatters, {
 			+ '<div style="width:' + pct + '%;height:100%;background:var(--primary);border-radius:3px"></div>'
 			+ '</div><span style="font-size:var(--text-xs);white-space:nowrap">' + value + '</span></div>';
 	},
+
 	Toggle: function(value) {
 		let checked = cint(value);
 		return `<div class="toggle-format-display">
@@ -717,35 +720,32 @@ Object.assign(frappe.form.formatters, {
 			</span>
 		</div>`;
 	},
+
+	// Table Editor — not supported in list view; blocked by validation.
+	// Key uses the exact fieldtype name (with space) so Frappe's frappe.format() finds it.
+	// The old camelCase alias is kept so any cached references also return empty.
+	"Table Editor": function(value) {
+		return "";
+	},
 	TableEditor: function(value) {
-		if (!value) return "";
-		try {
-			var d = JSON.parse(value);
-			if (!d || !d.columns) return value;
-			var h = '<table class="table table-bordered table-condensed" style="margin:0;font-size:var(--text-sm)"><thead><tr>';
-			d.columns.forEach(function(c) { h += '<th style="padding:4px 8px">'+frappe.utils.escape_html(c||"")+'</th>'; });
-			h += '</tr></thead><tbody>';
-			(d.data||[]).forEach(function(r) { h += '<tr>'; (r||[]).forEach(function(c) { h += '<td style="padding:4px 8px">'+frappe.utils.escape_html(String(c||""))+'</td>'; }); h += '</tr>'; });
-			h += '</tbody></table>'; return h;
-		} catch(e) { return value; }
+		return "";
 	},
+
+	// Rich Tags — not supported in list view; blocked by validation
 	"Rich Tags": function(value) {
-		if (!value) return "";
-		let tags = [];
-		try { tags = JSON.parse(value); } catch(e) { return value; }
-		if (!Array.isArray(tags)) return value;
-		return tags.map(t =>
-			`<span class="rich-tag-pill" style="background:${frappe.utils.escape_html(t.color || "#d1d5db")}">${frappe.utils.escape_html(t.label || "")}</span>`
-		).join(" ");
+		return "";
 	},
+
+	// Address Autocomplete — blocked from list view; return empty string
 	"Address Autocomplete": function(value) {
+		return "";
+	},
+
+	// Radio — shows the selected option as plain text in list view.
+	// Frappe's list view click handler applies a filter automatically for string columns.
+	Radio: function(value) {
 		if (!value) return "";
-		try {
-			let d = JSON.parse(value);
-			return frappe.utils.escape_html(d.display || d.address || "");
-		} catch(e) {
-			return frappe.utils.escape_html(value);
-		}
+		return frappe.utils.escape_html(value);
 	},
 });
 
@@ -1134,3 +1134,227 @@ frappe.ui.form.ControlAddressAutocomplete = class ControlAddressAutocomplete ext
 // Register Address Autocomplete with space in name
 frappe.ui.form.ControlAddressAutocomplete.field_type = "Address Autocomplete";
 frappe.ui.form["ControlAddress Autocomplete"] = frappe.ui.form.ControlAddressAutocomplete;
+
+
+// ============================================================
+//  RADIO CONTROL
+// ============================================================
+frappe.ui.form.ControlRadio = class ControlRadio extends frappe.ui.form.ControlData {
+	static horizontal = false;
+
+	make_input() {
+		this.has_input = true;
+		this._value = "";
+
+		if (!this.frm) {
+			// Filter / non-form context — plain select dropdown
+			this._make_select();
+		} else {
+			// Form context — custom radio button UI
+			this._make_radio_ui();
+		}
+	}
+
+	// ── filter mode ──────────────────────────────────────────
+	_make_select() {
+		this.$input = $(`<select class="form-control radio-filter-select rfs-empty"></select>`);
+		// disabled + hidden: shows as placeholder text but doesn't appear in the dropdown list
+		this.$input.append(
+			`<option value="" disabled hidden>${__(this.df.label || "Select")}</option>`
+		);
+		// blank selectable option so user can clear the filter back to "all data"
+		this.$input.append(`<option value=""></option>`);
+		this._get_options().forEach(opt => {
+			this.$input.append(
+				`<option value="${frappe.utils.escape_html(opt)}">${frappe.utils.escape_html(opt)}</option>`
+			);
+		});
+		$(this.input_area).append(this.$input);
+		this.$input.on("change", () => {
+			this._value = this.$input.val() || "";
+			// toggle grey placeholder styling based on whether a real value is chosen
+			this.$input.toggleClass("rfs-empty", !this._value);
+			this.parse_validate_and_set_in_model(this._value);
+		});
+	}
+
+	// ── form mode ─────────────────────────────────────────────
+	_make_radio_ui() {
+		this.$input = $('<input type="hidden">');
+		$(this.input_area).append(this.$input);
+		this.radio_wrapper = $('<div class="radio-field-wrapper"></div>');
+		$(this.input_area).append(this.radio_wrapper);
+		this._render_options();
+	}
+
+	_get_options() {
+		return (this.df.options || "").split("\n").map(o => o.trim()).filter(Boolean);
+	}
+
+	_render_options() {
+		if (!this.radio_wrapper) return;
+		const me = this;
+		this.radio_wrapper.empty();
+		const options = this._get_options();
+		const is_read_only = !!(this.df.read_only);
+
+		options.forEach((opt) => {
+			const is_sel = this._value === opt;
+			const item = $(`<div class="radio-option-item${is_sel ? " ropt-selected" : ""}${is_read_only ? " ropt-readonly" : ""}" data-value="${frappe.utils.escape_html(opt)}">
+				<span class="radio-opt-label">${frappe.utils.escape_html(opt)}</span>
+			</div>`);
+
+			if (!is_read_only) {
+				item.on("click", function() {
+					const val = $(this).data("value");
+					if (me._value === val) {
+						me._value = "";
+						me.$input.val("");
+						me.radio_wrapper.find(".radio-option-item").removeClass("ropt-selected");
+					} else {
+						me._value = val;
+						me.$input.val(val);
+						me.radio_wrapper.find(".radio-option-item").removeClass("ropt-selected");
+						$(this).addClass("ropt-selected");
+					}
+					me.validate_and_set_in_model(me._value);
+				});
+				item.on("dblclick", () => {
+					me._value = "";
+					me.$input.val("");
+					me.radio_wrapper.find(".radio-option-item").removeClass("ropt-selected");
+					me.validate_and_set_in_model("");
+				});
+			}
+
+			this.radio_wrapper.append(item);
+		});
+
+		if (!options.length) {
+			this.radio_wrapper.append(
+				`<span class="radio-no-options">${__("No options defined. Add options in the field\u2019s Options property (one per line).")}</span>`
+			);
+		}
+	}
+
+	// Always keep the custom radio UI visible (disabled state is CSS-only)
+	toggle_read_only() {
+		if (this.$wrapper && this.frm) {
+			this.$wrapper.find(".input-area").removeClass("hide");
+			this.$wrapper.find(".disp-area").addClass("hide");
+		}
+	}
+
+	refresh() {
+		super.refresh();
+		if (this.radio_wrapper) this._render_options();
+	}
+
+	set_input(value) {
+		this.last_value = this.value;
+		this._value = value || "";
+		this.value = this._value;
+		if (this.$input) this.$input.val(this._value);
+		if (this.radio_wrapper) this._render_options();
+		else if (this.$input && this.$input.is("select")) this.$input.val(this._value);
+		this.set_mandatory(value);
+		this.set_disp_area(value);
+	}
+
+	set_formatted_input(value) {
+		this._value = value || "";
+		if (this.radio_wrapper) this._render_options();
+		else if (this.$input && this.$input.is("select")) this.$input.val(this._value);
+	}
+
+	get_value() {
+		if (this.$input && this.$input.is("select")) return this.$input.val() || "";
+		return this._value || "";
+	}
+
+	get_input_value() {
+		return this.get_value();
+	}
+
+	validate(value) {
+		return value || "";
+	}
+};
+
+
+// ============================================================
+//  DOCTYPE EDITOR — inject custom field types into meta
+//  Patching frappe.meta.get_docfield directly is timing-
+//  independent: it fires the moment the Select control asks
+//  for the fieldtype options, whether that is during initial
+//  render or when a row is opened for editing.
+// ============================================================
+(function() {
+	const CUSTOM_TYPES = [
+		"Address Autocomplete", "Date Range", "Progress", "Radio",
+		"Rich Tags", "Slider", "Table Editor", "Tags", "Toggle"
+	];
+	const FIELDTYPE_DOCTYPES = new Set(["DocField", "Custom Field", "Customize Form Field"]);
+
+	const _orig_get_docfield = frappe.meta.get_docfield.bind(frappe.meta);
+
+	frappe.meta.get_docfield = function(doctype, fieldname, name) {
+		const df = _orig_get_docfield(doctype, fieldname, name);
+		if (df && FIELDTYPE_DOCTYPES.has(doctype) && fieldname === "fieldtype") {
+			const opts = (df.options || "").split("\n").filter(Boolean);
+			let changed = false;
+			CUSTOM_TYPES.forEach(ft => {
+				if (!opts.includes(ft)) { opts.push(ft); changed = true; }
+			});
+			if (changed) { opts.sort(); df.options = opts.join("\n"); }
+		}
+		return df;
+	};
+})();
+
+
+// ============================================================
+//  LIST VIEW VALIDATION
+//  Prevents Table Editor, Tags, Rich Tags, and Address
+//  Autocomplete from being enabled in list view.
+//  Works in DocType, Custom Field, and Customize Form editors.
+// ============================================================
+(function() {
+	const BLOCKED_IN_LIST_VIEW = ["Table Editor", "Tags", "Rich Tags", "Address Autocomplete"];
+
+	function block_list_view(fieldtype, cdt, cdn, frm) {
+		if (!BLOCKED_IN_LIST_VIEW.includes(fieldtype)) return;
+		frappe.show_alert({
+			message: __("Field type \u2018{0}\u2019 cannot be shown in list view. It stores complex structured data.", [fieldtype]),
+			indicator: "red",
+		});
+		if (cdt && cdn) {
+			frappe.model.set_value(cdt, cdn, "in_list_view", 0);
+		} else if (frm) {
+			frm.set_value("in_list_view", 0);
+		}
+	}
+
+	// DocField (child table of DocType)
+	frappe.ui.form.on("DocField", {
+		in_list_view(frm, cdt, cdn) {
+			const row = locals[cdt][cdn];
+			if (row.in_list_view) block_list_view(row.fieldtype, cdt, cdn, null);
+		},
+	});
+
+	// Custom Field (standalone doctype)
+	frappe.ui.form.on("Custom Field", {
+		in_list_view(frm) {
+			if (frm.doc.in_list_view) block_list_view(frm.doc.fieldtype, null, null, frm);
+		},
+	});
+
+	// Customize Form Field (child table of Customize Form)
+	frappe.ui.form.on("Customize Form Field", {
+		in_list_view(frm, cdt, cdn) {
+			const row = locals[cdt][cdn];
+			if (row.in_list_view) block_list_view(row.fieldtype, cdt, cdn, null);
+		},
+	});
+})();

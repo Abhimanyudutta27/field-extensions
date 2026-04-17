@@ -7,7 +7,7 @@ def _register_custom_fieldtypes():
 	"""Monkey-patch Frappe to register custom field types at import time.
 	This runs once when the app module is first imported."""
 
-	NEW_DATA_TYPES = ("Date Range", "Progress", "Table Editor", "Tags", "Slider", "Toggle", "Rich Tags", "Address Autocomplete")
+	NEW_DATA_TYPES = ("Date Range", "Progress", "Table Editor", "Tags", "Slider", "Toggle", "Rich Tags", "Address Autocomplete", "Radio")
 	NEW_NUMERIC_TYPES = ("Progress", "Slider")
 
 	# Extend data_fieldtypes (tuple – must replace)
@@ -47,6 +47,7 @@ def _register_custom_fieldtypes():
 		self.type_map["Toggle"] = ("int", "1")
 		self.type_map["Rich Tags"] = ("text", "")
 		self.type_map["Address Autocomplete"] = ("text", "")
+		self.type_map["Radio"] = ("varchar", self.VARCHAR_LEN)
 
 	MariaDBDatabase.setup_type_map = _patched_mariadb_setup
 
@@ -66,6 +67,7 @@ def _register_custom_fieldtypes():
 			self.type_map["Toggle"] = ("smallint", None)
 			self.type_map["Rich Tags"] = ("text", "")
 			self.type_map["Address Autocomplete"] = ("text", "")
+			self.type_map["Radio"] = ("varchar", self.VARCHAR_LEN)
 
 		PostgresDatabase.setup_type_map = _patched_postgres_setup
 	except ImportError:
@@ -97,6 +99,22 @@ def _register_custom_fieldtypes():
 		return _orig_get_valid_dict(self, **kwargs)
 
 	BaseDocument.get_valid_dict = _patched_get_valid_dict
+
+	# Patch BaseDocument._validate_selects to allow custom field types.
+	# Without this, saving a DocField/Custom Field/Customize Form Field row with
+	# one of our custom types throws: "Type cannot be 'Radio'" (or any custom type)
+	# because _validate_selects checks the value against the options of the
+	# Select field definition, which only knows about built-in types.
+	_FIELDTYPE_HOLDER_DOCTYPES = frozenset({"DocField", "Custom Field", "Customize Form Field"})
+	_orig_validate_selects = BaseDocument._validate_selects
+
+	def _patched_validate_selects(self):
+		if (self.doctype in _FIELDTYPE_HOLDER_DOCTYPES
+				and self.get("fieldtype") in NEW_DATA_TYPES):
+			return  # Custom type — skip fieldtype select validation
+		_orig_validate_selects(self)
+
+	BaseDocument._validate_selects = _patched_validate_selects
 
 
 _register_custom_fieldtypes()
